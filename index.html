@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Champagne, Tilted</title>
+<meta name="description" content="Tilt your phone to pour and swirl a glass of champagne — bubbles rise, the liquid stays level, and a toast rings out past 45°.">
+<meta name="theme-color" content="#120c08">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tilted">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#120c08;
+    --bg-1:#1c130c;
+    --gold-hi:#f6d98b;
+    --gold-mid:#d6a53f;
+    --gold-low:#8a5f1e;
+    --ink:#f3ead9;
+    --ink-dim:#c9b89a;
+    --line:rgba(246,217,139,0.22);
+    --panel:rgba(20,14,9,0.55);
+  }
+  /* This experience is an immersive, single-mood scene (candlelit tasting-room),
+     so the palette is intentionally held constant across color schemes. */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --bg-0:#120c08; --bg-1:#1c130c; }
+  }
+  :root[data-theme="dark"]{ --bg-0:#120c08; --bg-1:#1c130c; }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:
+      radial-gradient(120% 70% at 50% -10%, #2a1d10 0%, var(--bg-0) 55%),
+      var(--bg-1);
+    color:var(--ink);
+    font-family:'Inter', -apple-system, sans-serif;
+    overflow:hidden;
+    overscroll-behavior:none;
+    touch-action:none;
+    min-height:100dvh;
+  }
+
+  .stage{
+    height:100dvh;
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:calc(28px + env(safe-area-inset-top)) 22px calc(20px + env(safe-area-inset-bottom));
+    position:relative;
+  }
+
+  header{ text-align:center; max-width:420px; }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-style:italic;
+    font-size:clamp(28px, 8vw, 38px);
+    letter-spacing:0.2px;
+    margin:0 0 8px;
+    color:var(--gold-hi);
+    text-shadow: 0 0 40px rgba(246,217,139,0.18);
+  }
+  p.sub{
+    margin:0;
+    font-size:14px;
+    line-height:1.5;
+    color:var(--ink-dim);
+    font-weight:400;
+  }
+
+  .glass-wrap{
+    flex:1;
+    width:100%;
+    max-width:420px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    min-height:0;
+  }
+  svg#glassSvg{ height:100%; max-height:56vh; width:auto; filter: drop-shadow(0 30px 40px rgba(0,0,0,0.55)); }
+
+  #bubbles circle{ }
+
+  .toast-flash{
+    position:absolute;
+    top:8%;
+    left:50%;
+    transform:translateX(-50%) translateY(-6px);
+    font-family:'Fraunces', serif;
+    font-style:italic;
+    font-size:22px;
+    color:var(--gold-hi);
+    opacity:0;
+    pointer-events:none;
+    text-shadow:0 0 24px rgba(246,217,139,0.6);
+    transition:opacity .18s ease, transform .18s ease;
+    white-space:nowrap;
+  }
+  .toast-flash.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .panel{
+    width:100%;
+    max-width:420px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+  }
+
+  .readout{
+    font-size:12px;
+    letter-spacing:0.4px;
+    color:var(--ink-dim);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .readout .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--gold-mid);
+    box-shadow:0 0 8px var(--gold-mid);
+    transition:background .15s, box-shadow .15s;
+  }
+  .readout.hot .dot{ background:var(--gold-hi); box-shadow:0 0 12px var(--gold-hi); }
+
+  button#enableBtn{
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    color:var(--bg-0);
+    background:linear-gradient(180deg, var(--gold-hi), var(--gold-mid));
+    border:none;
+    border-radius:999px;
+    padding:13px 26px;
+    cursor:pointer;
+    box-shadow:0 8px 22px rgba(214,165,63,0.28);
+  }
+  button#enableBtn:active{ transform:translateY(1px); }
+  button#enableBtn.hidden{ display:none; }
+
+  .manual{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    opacity:0;
+    max-height:0;
+    overflow:hidden;
+    transition:opacity .25s ease;
+  }
+  .manual.visible{ opacity:1; max-height:80px; }
+  .manual span{ font-size:12px; color:var(--ink-dim); }
+  .manual input[type="range"]{
+    width:100%;
+    max-width:280px;
+    accent-color:var(--gold-mid);
+  }
+
+  .hint{
+    font-size:11.5px;
+    color:var(--ink-dim);
+    opacity:0.75;
+    text-align:center;
+    margin-top:2px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    #bubbles circle{ animation-duration: 0.01s !important; opacity:0 !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <header>
+    <h1>Champagne, Tilted</h1>
+    <p class="sub">Hold your phone like a glass. Tilt it side to side — the bubbles rise, the surface stays level, and a toast rings out past 45°.</p>
+  </header>
+
+  <div class="glass-wrap" id="glassWrap">
+    <div class="toast-flash" id="toastFlash">Cheers! 🥂</div>
+    <svg id="glassSvg" viewBox="0 0 400 620" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="liquidGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#fbe6a5"/>
+          <stop offset="45%" stop-color="#eec25a"/>
+          <stop offset="100%" stop-color="#b8791f"/>
+        </linearGradient>
+        <linearGradient id="foamGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#fff7e0" stop-opacity="0.95"/>
+          <stop offset="100%" stop-color="#f6d98b" stop-opacity="0.2"/>
+        </linearGradient>
+        <linearGradient id="glassGloss" x1="0" y1="0" x2="1" y2="0.2">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.14"/>
+          <stop offset="35%" stop-color="#ffffff" stop-opacity="0.02"/>
+          <stop offset="70%" stop-color="#ffffff" stop-opacity="0.05"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0.16"/>
+        </linearGradient>
+        <radialGradient id="baseShadow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#000" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+        </radialGradient>
+
+        <clipPath id="glassInteriorClip">
+          <path d="M 110 100 C 106 215, 152 335, 190 415 L 210 415 C 248 335, 294 215, 290 100 A 90 15 0 0 1 110 100 Z"/>
+        </clipPath>
+      </defs>
+
+      <ellipse cx="200" cy="565" rx="80" ry="14" fill="url(#baseShadow)"/>
+
+      <g id="tiltGroup">
+        <!-- foot + stem (behind bowl fill, part of tilting glass) -->
+        <ellipse cx="200" cy="560" rx="66" ry="12" fill="none" stroke="var(--line)" stroke-width="2"/>
+        <ellipse cx="200" cy="560" rx="66" ry="12" fill="url(#glassGloss)" opacity="0.5"/>
+        <rect x="195" y="420" width="10" height="128" rx="5" fill="url(#glassGloss)" stroke="var(--line)" stroke-width="1.5"/>
+
+        <!-- liquid, clipped to bowl interior, counter-rotated to stay level -->
+        <g clip-path="url(#glassInteriorClip)">
+          <g id="liquidGroup">
+            <rect id="liquidRect" x="0" y="238" width="400" height="260" fill="url(#liquidGrad)"/>
+            <ellipse id="foamLine" cx="200" cy="238" rx="95" ry="6" fill="url(#foamGrad)"/>
+            <g id="bubbles"></g>
+          </g>
+        </g>
+
+        <!-- bowl outline + glass gloss, drawn over liquid for a glass-front effect -->
+        <path d="M 105 95 C 100 220, 150 340, 188 420 L 212 420 C 250 340, 300 220, 295 95 A 95 18 0 0 1 105 95 Z"
+              fill="url(#glassGloss)" stroke="var(--line)" stroke-width="2"/>
+        <ellipse cx="200" cy="95" rx="95" ry="18" fill="none" stroke="var(--line)" stroke-width="2"/>
+        <path d="M 128 110 C 122 210 150 300 178 380" fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="4" stroke-linecap="round"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="panel">
+    <button id="enableBtn">Enable Tilt Sensor</button>
+    <div class="manual" id="manualWrap">
+      <span id="manualLabel">No tilt sensor detected — drag the slider</span>
+      <input type="range" id="manualTilt" min="-90" max="90" value="0">
+    </div>
+    <div class="readout" id="readout"><span class="dot"></span><span id="readoutText">tilt 0°</span></div>
+    <p class="hint">You can also drag left/right on the glass itself.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  const tiltGroup = document.getElementById('tiltGroup');
+  const liquidGroup = document.getElementById('liquidGroup');
+  const readout = document.getElementById('readout');
+  const readoutText = document.getElementById('readoutText');
+  const enableBtn = document.getElementById('enableBtn');
+  const manualWrap = document.getElementById('manualWrap');
+  const manualTilt = document.getElementById('manualTilt');
+  const manualLabel = document.getElementById('manualLabel');
+  const glassWrap = document.getElementById('glassWrap');
+  const toastFlash = document.getElementById('toastFlash');
+  const bubblesLayer = document.getElementById('bubbles');
+
+  const PIVOT_X = 200, PIVOT_Y = 560;
+  const CLINK_THRESHOLD = 45;
+  const CLINK_RESET = 32;
+  const VISUAL_CAP = 62;
+
+  let rawAngle = 0;
+  let displayAngle = 0;
+  let sensorActive = false;
+  let clinkArmed = true;
+  let lastClinkTime = 0;
+  let audioCtx = null;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+  function ensureAudio(){
+    if (!audioCtx){
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) audioCtx = new Ctx();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playClink(){
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    const freqs = [2637, 3520, 5274];
+    const master = audioCtx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.35, now + 0.006);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+    master.connect(audioCtx.destination);
+
+    freqs.forEach((f, i) => {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, now);
+      const g = audioCtx.createGain();
+      const amp = i === 0 ? 0.9 : 0.35 / i;
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(amp, now + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.7 - i * 0.08);
+      osc.connect(g);
+      g.connect(master);
+      osc.start(now);
+      osc.stop(now + 0.8);
+    });
+
+    if (navigator.vibrate) navigator.vibrate(18);
+    toastFlash.classList.add('show');
+    setTimeout(() => toastFlash.classList.remove('show'), 650);
+  }
+
+  function setAngle(angle){
+    rawAngle = angle;
+    displayAngle = clamp(angle, -VISUAL_CAP, VISUAL_CAP);
+    tiltGroup.setAttribute('transform', `rotate(${displayAngle} ${PIVOT_X} ${PIVOT_Y})`);
+    liquidGroup.setAttribute('transform', `rotate(${-displayAngle} ${PIVOT_X} ${PIVOT_Y})`);
+
+    const mag = Math.abs(rawAngle);
+    readoutText.textContent = `tilt ${Math.round(rawAngle)}°`;
+    readout.classList.toggle('hot', mag > CLINK_THRESHOLD - 5);
+
+    if (mag > CLINK_THRESHOLD && clinkArmed){
+      clinkArmed = false;
+      const t = performance.now();
+      if (t - lastClinkTime > 400){
+        lastClinkTime = t;
+        playClink();
+      }
+    } else if (mag < CLINK_RESET){
+      clinkArmed = true;
+    }
+  }
+
+  function handleOrientation(e){
+    if (e.gamma === null || e.gamma === undefined) return;
+    if (!sensorActive){
+      sensorActive = true;
+      manualWrap.classList.remove('visible');
+    }
+    setAngle(e.gamma);
+  }
+
+  function startListening(){
+    window.addEventListener('deviceorientation', handleOrientation);
+    setTimeout(() => {
+      if (!sensorActive){
+        manualLabel.textContent = 'No tilt sensor detected — drag the slider';
+        manualWrap.classList.add('visible');
+      }
+    }, 1200);
+  }
+
+  const needsPermission = typeof DeviceOrientationEvent !== 'undefined'
+    && typeof DeviceOrientationEvent.requestPermission === 'function';
+
+  if (needsPermission){
+    enableBtn.addEventListener('click', () => {
+      ensureAudio();
+      DeviceOrientationEvent.requestPermission().then(state => {
+        if (state === 'granted'){
+          startListening();
+        } else {
+          manualLabel.textContent = 'Sensor permission denied — drag the slider';
+          manualWrap.classList.add('visible');
+        }
+        enableBtn.classList.add('hidden');
+      }).catch(() => {
+        manualWrap.classList.add('visible');
+        enableBtn.classList.add('hidden');
+      });
+    }, { once: true });
+  } else {
+    enableBtn.addEventListener('click', () => { ensureAudio(); }, { once: true });
+    enableBtn.textContent = 'Tap to Begin';
+    startListening();
+  }
+
+  // Manual slider fallback
+  manualTilt.addEventListener('input', () => {
+    ensureAudio();
+    setAngle(parseFloat(manualTilt.value));
+  });
+
+  // Drag-to-tilt directly on the glass (works alongside sensor/slider)
+  let dragging = false, dragStartX = 0, dragStartAngle = 0;
+  glassWrap.addEventListener('pointerdown', (e) => {
+    ensureAudio();
+    dragging = true;
+    dragStartX = e.clientX;
+    dragStartAngle = rawAngle;
+    glassWrap.setPointerCapture(e.pointerId);
+  });
+  glassWrap.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - dragStartX;
+    setAngle(clamp(dragStartAngle + dx * 0.35, -90, 90));
+    manualTilt.value = clamp(dragStartAngle + dx * 0.35, -90, 90);
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(ev => {
+    glassWrap.addEventListener(ev, () => { dragging = false; });
+  });
+
+  // Bubbles
+  const BUBBLE_COUNT = reducedMotion ? 0 : 16;
+  const RISE_DISTANCE = 178; // from bottom (~415) to near surface (~238)
+  const styleEl = document.createElement('style');
+  let keyframeCss = '';
+  for (let i = 0; i < BUBBLE_COUNT; i++){
+    const cx = 140 + Math.random() * 120;
+    const r = 1.4 + Math.random() * 2.4;
+    const dur = 2.6 + Math.random() * 2.6;
+    const delay = -Math.random() * dur;
+    const startY = 250 + Math.random() * 160;
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', cx);
+    circle.setAttribute('cy', startY);
+    circle.setAttribute('r', r);
+    circle.setAttribute('fill', '#fff3c9');
+    circle.setAttribute('opacity', '0.85');
+    circle.style.animation = `rise${i} ${dur}s linear ${delay}s infinite`;
+    bubblesLayer.appendChild(circle);
+    const dist = startY - (238 - 10);
+    keyframeCss += `@keyframes rise${i}{
+      0%{ transform:translateY(0); opacity:0; }
+      8%{ opacity:0.85; }
+      88%{ opacity:0.5; }
+      100%{ transform:translateY(-${dist}px); opacity:0; }
+    }`;
+  }
+  styleEl.textContent = keyframeCss;
+  document.head.appendChild(styleEl);
+
+  setAngle(0);
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
